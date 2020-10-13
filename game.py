@@ -1,15 +1,17 @@
 import pygame
 import sys
-import enum
 import random
 import os
 import math
 import numpy as np
-import cv2
+
+if 'flappy_gym' not in os.getcwd():
+  os.chdir('flappy_gym')
 
 random.seed(1)
 
-#os.environ["SDL_VIDEODRIVER"] = "dummy"
+# comment out if you're not using jupyter notebook or Google Colab
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 WIN_WIDTH, WIN_HEIGHT = 400, 667
 pygame.init()
 screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
@@ -112,14 +114,12 @@ class Pipe:
     return bottom_point != None or top_point != None
 
 class FlappyBird():
-  def __init__(self, screen, render=False):
+  def __init__(self):
     self.bird = Bird()
     self.pipes = [Pipe()]
     self.clock = pygame.time.Clock()
     self.score = 0
     self.screen = screen
-    if not render:
-      os.environ["SDL_VIDEODRIVER"] = "dummy"
 
   def step(self, action):
     if action == 1:
@@ -200,6 +200,12 @@ class FlappyBird():
     y_distance_bottom = self.pipes[0].bottom - self.bird.y
     return (y_distance_bottom, x_distance, self.bird.vel)
 
+  # for model training:
+  # draw everything and then 
+  # return the screen as an RGB numpy array
+  
+  # for playing the game:
+  # draw everything and show it in a window
   def render(self, mode='human'):
     if mode == 'human':
       self.clock.tick(60)
@@ -222,8 +228,8 @@ class FlappyBird():
     #sys.exit()
 
 def handle_pygame_events():
-  pygame.event.pump()
-  '''for e in pygame.event.get():
+  # pygame.event.pump()
+  for e in pygame.event.get():
     if e.type == pygame.QUIT:
       pygame.quit()
-      #sys.exit()'''
+      #sys.exit()
