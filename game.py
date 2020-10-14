@@ -27,7 +27,6 @@ ASSETS = {
   'bird2': load_image('bird2.png'),
   'bird3': load_image('bird3.png'),
   'pipe': load_image('pipe.png'),
-  'base': load_image('base.png'),
   'bg': load_image('bg.png')
   }
 
@@ -211,8 +210,8 @@ class FlappyBird():
       self.clock.tick(60)
     else:
       self.clock.tick()
-    self.screen.blit(ASSETS['bg'], (0, 0))
-    # self.screen.fill((0, 0, 0))
+    #self.screen.blit(ASSETS['bg'], (0, 0))
+    self.screen.fill((0, 0, 0))
     for p in self.pipes:
       p.draw(self.screen)
     self.bird.draw(self.screen)
