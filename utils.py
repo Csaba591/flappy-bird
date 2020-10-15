@@ -8,7 +8,7 @@ if 'flappy_gym' not in path:
 
 random.seed(1)
 # comment out if you're not using jupyter notebook or Google Colab
-#os.environ["SDL_VIDEODRIVER"] = "dummy"
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 
 # scale and optimize graphics for rendering
 def load_image(filename):
