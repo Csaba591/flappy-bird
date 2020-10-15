@@ -4,31 +4,13 @@ import random
 import os
 import math
 import numpy as np
+from . import utils
 
-if 'flappy_gym' not in os.getcwd():
-  os.chdir('flappy_gym')
-
-random.seed(1)
-
-# comment out if you're not using jupyter notebook or Google Colab
-os.environ["SDL_VIDEODRIVER"] = "dummy"
-WIN_WIDTH, WIN_HEIGHT = 400, 667
 pygame.init()
+WIN_WIDTH, WIN_HEIGHT = 400, 667
 screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
 
-def load_image(filename):
-  img = pygame.image.load(f'assets/{filename}').convert()
-  scale = 1.5
-  scaled_size = int(img.get_width() * scale), int(img.get_height() * scale)
-  return pygame.transform.scale(img, scaled_size)
-
-ASSETS = {
-  'bird1': load_image('bird1.png'),
-  'bird2': load_image('bird2.png'),
-  'bird3': load_image('bird3.png'),
-  'pipe': load_image('pipe.png'),
-  'bg': load_image('bg.png')
-  }
+ASSETS = utils.load_assets(utils.path)
 
 GRAVITY = 1
 
@@ -120,76 +102,84 @@ class FlappyBird():
     self.score = 0
     self.screen = screen
 
+  # calculate x, y distance to next pipe
+  def get_x_y_distance(self, pipe):
+    x_dist = pipe.x - self.bird.x
+    y_dist_to_bottom_pipe = pipe.bottom - self.bird.y
+    return x_dist, y_dist_to_bottom_pipe
+
   def step(self, action):
+    # 1 = fly up, 0 = do nothing
     if action == 1:
       self.bird.flap()
     
+    # update x, y and velocity
     self.bird.move()
-    
-    reward = 15
-
-    # get next state
-    y_distance_bottom = self.pipes[0].bottom - self.bird.y
-    y_distance_middle = self.pipes[0].bottom - self.pipes[0].gap / 2 - self.bird.y + self.bird.height / 2
-    x_distance = self.pipes[0].x - self.bird.x
-    add_pipe = True
-    pipe_passed = False
+    # move pipes
     for p in self.pipes:
-      if p.x + p.pipe_top.get_width() > self.bird.x:
-        # calculate x, y distance to next pipe
-        y_distance_bottom = p.bottom - self.bird.y
-        y_distance_middle = p.bottom - p.gap / 2 - self.bird.y + self.bird.height / 2
-        x_distance = p.x - self.bird.x
+      p.move()
+    
+    # reward for staying alive
+    reward = 0
+
+    #--- get next state
+    x_distance, y_distance_bottom = self.get_x_y_distance(self.pipes[0])
+    add_pipe = True
+    for p in self.pipes:
+      pipe_in_front_of_bird = p.x + p.pipe_top.get_width() > self.bird.x
+      if pipe_in_front_of_bird:
+        # x, y distance to next pipe
+        x_distance, y_distance_bottom = self.get_x_y_distance(p)
         # there's a pipe in front of the bird -> no need for new one
         add_pipe = False
         break # once next one is found, no need to look further
-      else:
-        # add score if pipe was passed just now
+      
+      else: # bird has passed pipe p
+        # if pipe was passed just now
         if not p.passed:
-          reward = 100
-          pipe_passed = True
-          self.score += 1
+          reward = 1      # reward for passing pipe
+          self.score += 1 # game score
           p.passed = True
+    
+    # new state of bird
     next_state = (y_distance_bottom, x_distance, self.bird.vel)
     
-    '''if pipe_passed:
-      reward = 500
-    else:
-      reward = -int(math.sqrt(x_distance ** 2 + y_distance_middle ** 2))'''
-
+    # if there's no pipe in front of the bird
+    # -> add one
     if add_pipe:
       self.pipes.append(Pipe())
     
     # bird dies when it hits a pipe or flies out of the screen
     done = self.check_collision() \
-           or self.bird.y + self.bird.img.get_height() < 0 \
-           or self.bird.y > WIN_HEIGHT
+           or self.bird.y  < 0 \
+           or self.bird.y + self.bird.img.get_height() > WIN_HEIGHT
     
-    if not done:
-      for p in self.pipes:
-        p.move()
+    # reward for dying
+    if done:
+      reward = -1
+    
+    # remove pipes that are out of the screen
     self.clear_pipes()
     
-    if done:
-      reward = -1000
-      
     return next_state, reward, done   
 
   def get_state_space_size(self):
     return 3
 
+  # remove pipes that are out of the screen
   def clear_pipes(self):
     if self.pipes[0].x + self.pipes[0].pipe_bottom.get_width() < 0:
       del self.pipes[0]
 
+  # check if bird collides with any of the pipes
   def check_collision(self):
     for p in self.pipes:
       done = p.collide(self.bird)
-      if done: 
-        print('collision')
+      if done:
         return done
     return done
 
+  # reset environment to initial state
   def reset(self):
     self.bird.reset()
     self.pipes.clear()
@@ -207,17 +197,20 @@ class FlappyBird():
   # draw everything and show it in a window
   def render(self, mode='human'):
     if mode == 'human':
-      self.clock.tick(60)
+      self.clock.tick(60) # FPS lock
     else:
-      self.clock.tick()
+      self.clock.tick()   # no FPS lock
     #self.screen.blit(ASSETS['bg'], (0, 0))
-    self.screen.fill((0, 0, 0))
+    self.screen.fill((0, 0, 0)) # black background
+    # draw all pipes
     for p in self.pipes:
       p.draw(self.screen)
+    # draw bird
     self.bird.draw(self.screen)
     if mode=='human':
+      # show in game window
       pygame.display.update()
-    else:
+    else: # return screen as an array
       screen_arr = pygame.surfarray.array3d(self.screen)
       screen_arr = np.swapaxes(screen_arr, 0, 1)
       return screen_arr
@@ -225,10 +218,3 @@ class FlappyBird():
   def close(self):
     pygame.quit()
     #sys.exit()
-
-def handle_pygame_events():
-  # pygame.event.pump()
-  for e in pygame.event.get():
-    if e.type == pygame.QUIT:
-      pygame.quit()
-      #sys.exit()
