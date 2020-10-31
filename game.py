@@ -120,7 +120,7 @@ class FlappyBird():
       p.move()
     
     # reward for staying alive
-    reward = 0
+    reward = 0.1
 
     #--- get next state
     x_distance, y_distance_bottom = self.get_x_y_distance(self.pipes[0])
@@ -161,7 +161,7 @@ class FlappyBird():
     # remove pipes that are out of the screen
     self.clear_pipes()
     
-    return next_state, reward, done   
+    return np.array(next_state), reward, done   
 
   def get_state_space_size(self):
     return 3
@@ -187,7 +187,7 @@ class FlappyBird():
     self.score = 0
     x_distance = self.pipes[0].x - self.bird.x
     y_distance_bottom = self.pipes[0].bottom - self.bird.y
-    return (y_distance_bottom, x_distance, self.bird.vel)
+    return np.array((y_distance_bottom, x_distance, self.bird.vel))
 
   # for model training:
   # draw everything and then 
@@ -207,13 +207,15 @@ class FlappyBird():
       p.draw(self.screen)
     # draw bird
     self.bird.draw(self.screen)
+    self.screen.blit(self.screen, (0, 0))
     if mode=='human':
       # show in game window
       pygame.display.update()
-    else: # return screen as an array
-      screen_arr = pygame.surfarray.array3d(self.screen)
-      screen_arr = np.swapaxes(screen_arr, 0, 1)
-      return screen_arr
+      return
+    # return screen as an array
+    screen_arr = pygame.surfarray.array3d(self.screen)
+    screen_arr = np.swapaxes(screen_arr, 0, 1)
+    return screen_arr
 
   def close(self):
     pygame.quit()
