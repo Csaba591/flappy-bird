@@ -12,7 +12,7 @@ screen = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
 
 ASSETS = utils.load_assets(utils.path)
 
-GRAVITY = 1
+GRAVITY = 0.5
 
 class Bird:
   def __init__(self):
@@ -29,7 +29,7 @@ class Bird:
 
   def move(self):
     self.tick_count += 1
-    self.vel += 0.5
+    self.vel += GRAVITY
     if self.vel > self.max_vel:
       self.vel = self.max_vel
     self.y += self.vel
@@ -50,9 +50,9 @@ class Bird:
     return pygame.mask.from_surface(self.img)
 
 class Pipe:
+  vel = 2
+  gap = 150
   def __init__(self):
-    self.vel = 2
-    self.gap = 150
     self.x = WIN_WIDTH
     self.passed = False
     self.pipe_top = pygame.transform.flip(ASSETS['pipe'], False, True)
@@ -62,12 +62,12 @@ class Pipe:
   def set_dimensions(self):
     dist = random.randint(-180, 180)
     middle = WIN_HEIGHT / 2
-    self.top = middle + dist - self.gap / 2 - self.pipe_top.get_height()
-    self.bottom = middle + dist + self.gap / 2
+    self.top = middle + dist - Pipe.gap / 2 - self.pipe_top.get_height()
+    self.bottom = middle + dist + Pipe.gap / 2
     self.width = self.pipe_top.get_width()
 
   def move(self):
-    self.x -= self.vel
+    self.x -= Pipe.vel
 
   def draw(self, screen):
     screen.blit(self.pipe_top, (self.x, self.top))
@@ -106,7 +106,8 @@ class FlappyBird():
   def get_x_y_distance(self, pipe):
     x_dist = pipe.x - self.bird.x
     y_dist_to_bottom_pipe = pipe.bottom - self.bird.y
-    return x_dist, y_dist_to_bottom_pipe
+    y_dist_to_top_pipe = y_dist_to_bottom_pipe - Pipe.gap
+    return x_dist, y_dist_to_bottom_pipe, y_dist_to_top_pipe
 
   def step(self, action):
     # 1 = fly up, 0 = do nothing
@@ -123,13 +124,15 @@ class FlappyBird():
     reward = 0.1
 
     #--- get next state
-    x_distance, y_distance_bottom = self.get_x_y_distance(self.pipes[0])
+    x_distance, y_distance_bottom, y_distance_top = \
+      self.get_x_y_distance(self.pipes[0])
     add_pipe = True
     for p in self.pipes:
       pipe_in_front_of_bird = p.x + p.pipe_top.get_width() > self.bird.x
       if pipe_in_front_of_bird:
         # x, y distance to next pipe
-        x_distance, y_distance_bottom = self.get_x_y_distance(p)
+        x_distance, y_distance_bottom, y_distance_top = \
+          self.get_x_y_distance(p)
         # there's a pipe in front of the bird -> no need for new one
         add_pipe = False
         break # once next one is found, no need to look further
@@ -140,9 +143,10 @@ class FlappyBird():
           reward = 1      # reward for passing pipe
           self.score += 1 # game score
           p.passed = True
+          # Pipe.vel *= 1.05
     
     # new state of bird
-    next_state = (y_distance_bottom, x_distance, self.bird.vel)
+    next_state = (y_distance_bottom, y_distance_top, x_distance, self.bird.vel)
     
     # if there's no pipe in front of the bird
     # -> add one
@@ -164,7 +168,7 @@ class FlappyBird():
     return np.array(next_state), reward, done   
 
   def get_state_space_size(self):
-    return 3
+    return 4
 
   # remove pipes that are out of the screen
   def clear_pipes(self):
@@ -187,7 +191,8 @@ class FlappyBird():
     self.score = 0
     x_distance = self.pipes[0].x - self.bird.x
     y_distance_bottom = self.pipes[0].bottom - self.bird.y
-    return np.array((y_distance_bottom, x_distance, self.bird.vel))
+    y_distance_top = y_distance_bottom - Pipe.gap
+    return np.array((y_distance_bottom, y_distance_top, x_distance, self.bird.vel))
 
   # for model training:
   # draw everything and then 
@@ -207,14 +212,17 @@ class FlappyBird():
       p.draw(self.screen)
     # draw bird
     self.bird.draw(self.screen)
-    self.screen.blit(self.screen, (0, 0))
-    if mode=='human':
+
+    if mode == 'human':
       # show in game window
       pygame.display.update()
-      return
+      
     # return screen as an array
     screen_arr = pygame.surfarray.array3d(self.screen)
     screen_arr = np.swapaxes(screen_arr, 0, 1)
+    if mode == '8color':
+      screen_arr = screen_arr / 8.
+      screen_arr = np.floor(screen_arr, dtype='float32')
     return screen_arr
 
   def close(self):

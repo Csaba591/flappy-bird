@@ -6,9 +6,11 @@ path = os.getcwd()
 if 'flappy_gym' not in path:
   path = os.path.join(path, 'flappy_gym')
 
-random.seed(1)
+#random.seed(1)
 # comment out if you're not using jupyter notebook or Google Colab
 os.environ["SDL_VIDEODRIVER"] = "dummy"
+
+os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (300,50)
 
 # scale and optimize graphics for rendering
 def load_image(filename):
@@ -24,6 +26,9 @@ def load_assets(path):
   for fn in filenames:
     assets[fn] = load_image(fn + '.png')
   return assets
+
+def close_env():
+  pygame.quit()
 
 def handle_pygame_events():
   # pygame.event.pump()
